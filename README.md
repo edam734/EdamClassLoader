@@ -1,4 +1,4 @@
-# DynamicClassLoader
+# EdamClassLoader
 
 <br>
 
@@ -26,7 +26,7 @@ The project should remain **small, generic and focused exclusively on class load
 
 ## Responsibilities
 
-`DynamicClassLoader` should be responsible for:
+`EdamClassLoader` should be responsible for:
 
 - accepting a source from which class bytecode can be obtained;
 - accepting a parent `ClassLoader`;
@@ -42,7 +42,7 @@ Conceptually:
 ```text
 class name
     ↓
-DynamicClassLoader
+EdamClassLoader
     ↓
 delegate to parent
     ↓
@@ -88,11 +88,11 @@ The class loader should simply load classes.
 A minimal first version may look conceptually like this:
 
 ```java
-public final class DynamicClassLoader extends ClassLoader {
+public final class EdamClassLoader extends ClassLoader {
 
     private final Path root;
 
-    public DynamicClassLoader(Path root, ClassLoader parent) {
+    public EdamClassLoader(Path root, ClassLoader parent) {
         super(parent);
         this.root = Objects.requireNonNull(root, "root");
     }
@@ -121,7 +121,7 @@ When `loadClass()` is called, Java's standard `ClassLoader` implementation norma
 Conceptually:
 
 ```text
-DynamicClassLoader.loadClass(...)
+EdamClassLoader.loadClass(...)
         ↓
 check whether class is already loaded
         ↓
@@ -129,7 +129,7 @@ delegate to parent
         ↓
 if parent cannot load it
         ↓
-DynamicClassLoader.findClass(...)
+EdamClassLoader.findClass(...)
         ↓
 locate bytecode
         ↓
@@ -151,8 +151,8 @@ A dynamically loaded class may depend on classes that are already available else
 For example:
 
 ```text
-ReportGenerator.class → loaded by DynamicClassLoader
-PdfFormatter.class    → loaded by DynamicClassLoader
+ReportGenerator.class → loaded by EdamClassLoader
+PdfFormatter.class    → loaded by EdamClassLoader
 LoggingService.class  → may already exist in the parent
 String.class          → provided by the Java runtime
 ArrayList.class       → provided by the Java runtime
@@ -169,7 +169,7 @@ Platform ClassLoader
         ↑
 Application ClassLoader
         ↑
-DynamicClassLoader
+EdamClassLoader
 ```
 
 Each loader delegates to its own parent, producing the complete delegation chain.
@@ -204,7 +204,7 @@ Overriding `loadClass()` should only be considered if the project intentionally 
 
 ## Reading and defining classes
 
-When a class cannot be obtained from the parent, `DynamicClassLoader` should locate the corresponding `.class` file.
+When a class cannot be obtained from the parent, `EdamClassLoader` should locate the corresponding `.class` file.
 
 A fully qualified class name such as:
 
@@ -275,7 +275,7 @@ PdfFormatter
 may only be loaded later when first required
 ```
 
-The `DynamicClassLoader` therefore needs to remain available for as long as dynamically loaded classes may still require additional classes.
+The `EdamClassLoader` therefore needs to remain available for as long as dynamically loaded classes may still require additional classes.
 
 <br>
 
@@ -317,7 +317,7 @@ Useful scenarios include:
 - confirming parent-first delegation;
 - loading a class with dependencies;
 - attempting to load a missing class;
-- loading the same class through two different `DynamicClassLoader` instances;
+- loading the same class through two different `EdamClassLoader` instances;
 - verifying that classes with the same name but different defining loaders are different JVM types;
 - verifying lazy loading of dependent classes.
 
