@@ -2,17 +2,25 @@
 
 <br>
 
-Small Java library for loading classes dynamically from external JAR files at runtime.
+Small Java library for dynamic class loading through a custom `ClassLoader`.
 
 <br>
 
 ## Goal
 
-The purpose of this project is to provide a small reusable Java library for loading classes dynamically from external JAR files at runtime.
+The purpose of this project is to provide a small reusable Java library that implements the core mechanics of dynamic class loading.
 
-The library should offer a simple API for creating and managing a dedicated `ClassLoader`, loading classes by name, and controlling the lifecycle of the underlying resources.
+Instead of relying entirely on `URLClassLoader`, the project should use a custom `ClassLoader` so that the class-loading process remains explicit and understandable.
 
-The project should remain **small, generic and focused exclusively on dynamic class loading**.
+The library should support:
+
+- loading classes dynamically by fully qualified name;
+- delegating to a parent `ClassLoader`;
+- locating class bytecode from an external source;
+- defining classes through `defineClass()`;
+- preserving Java's normal lazy class-loading behavior.
+
+The project should remain **small, generic and focused exclusively on class loading**.
 
 <br>
 
@@ -20,24 +28,31 @@ The project should remain **small, generic and focused exclusively on dynamic cl
 
 `DynamicClassLoader` should be responsible for:
 
-- receiving the path of an external JAR;
-- creating and owning a `URLClassLoader`;
+- accepting a source from which class bytecode can be obtained;
 - accepting a parent `ClassLoader`;
-- loading a class by its fully qualified name;
-- loading classes lazily as required by the JVM;
-- exposing a clean lifecycle for the underlying class loader;
-- closing the `URLClassLoader` when it is no longer needed.
+- participating in the normal parent delegation model;
+- locating the bytecode of classes that are not available through the parent;
+- reading the corresponding `.class` bytes;
+- defining classes through `defineClass()`;
+- loading classes by fully qualified name;
+- allowing additional dependent classes to be loaded later when required by the JVM.
 
 Conceptually:
 
 ```text
-external JAR
+class name
     ↓
 DynamicClassLoader
     ↓
-URLClassLoader
+delegate to parent
     ↓
-load class by name
+if not found
+    ↓
+locate class bytecode
+    ↓
+read .class bytes
+    ↓
+defineClass(...)
     ↓
 Class<?>
 ```
@@ -46,22 +61,23 @@ Class<?>
 
 ## What does NOT belong here
 
-This project must not know anything about plugins or dependency injection.
+This project must not know anything about plugins, dependency injection or application-specific rules.
 
 The following responsibilities belong to other projects:
 
-- reading a `Plugin-Class` manifest entry;
-- validating that a class implements a `Plugin` interface;
-- instantiating or executing plugins;
-- `PluginRegistry`;
-- `LoadedPlugin`;
-- plugin cache / shadow copies;
+- requiring the source to be a plugin JAR;
+- reading manifest entries;
+- validating that a class implements a particular interface;
+- instantiating or executing dynamically loaded classes;
+- plugin registries;
+- plugin lifecycle management;
+- directory monitoring;
 - `WatchService`;
-- handling `CREATED`, `MODIFIED`, `DELETED` or `OVERFLOW` events;
+- cache or shadow-copy management;
 - file hashing;
 - retry logic;
-- plugin lifecycle management;
-- dependency resolution or dependency injection.
+- dependency injection;
+- application-specific validation.
 
 The class loader should simply load classes.
 
@@ -72,37 +88,57 @@ The class loader should simply load classes.
 A minimal first version may look conceptually like this:
 
 ```java
-public final class DynamicClassLoader implements Closeable {
+public final class DynamicClassLoader extends ClassLoader {
 
-    private final URLClassLoader classLoader;
+    private final Path root;
 
-    public DynamicClassLoader(Path jarPath, ClassLoader parent)
-            throws MalformedURLException {
-        URL jarUrl = jarPath.toUri().toURL();
-
-        classLoader = new URLClassLoader(
-                new URL[]{jarUrl},
-                parent
-        );
-    }
-
-    public Class<?> loadClass(String className)
-            throws ClassNotFoundException {
-        return Class.forName(
-                className,
-                false,
-                classLoader
-        );
+    public DynamicClassLoader(Path root, ClassLoader parent) {
+        super(parent);
+        this.root = Objects.requireNonNull(root, "root");
     }
 
     @Override
-    public void close() throws IOException {
-        classLoader.close();
+    protected Class<?> findClass(String className)
+            throws ClassNotFoundException {
+
+        // Convert the fully qualified class name into a path,
+        // read the corresponding .class bytes,
+        // and define the class through defineClass(...).
+
+        throw new UnsupportedOperationException();
     }
 }
 ```
 
-This is only the starting design. The API can be refined during development.
+This is only the starting design. The exact source abstraction and public API can be refined during development.
+
+<br>
+
+## Class loading process
+
+When `loadClass()` is called, Java's standard `ClassLoader` implementation normally follows a **parent-first delegation model**.
+
+Conceptually:
+
+```text
+DynamicClassLoader.loadClass(...)
+        ↓
+check whether class is already loaded
+        ↓
+delegate to parent
+        ↓
+if parent cannot load it
+        ↓
+DynamicClassLoader.findClass(...)
+        ↓
+locate bytecode
+        ↓
+defineClass(...)
+```
+
+This means the custom loader does not need to reimplement the entire loading algorithm.
+
+Its main responsibility is normally to implement `findClass()` and provide a way to obtain the class bytecode.
 
 <br>
 
@@ -110,43 +146,148 @@ This is only the starting design. The API can be refined during development.
 
 The library should support a parent `ClassLoader`.
 
-This is important because a dynamically loaded class may depend on classes that are not inside its own JAR.
+A dynamically loaded class may depend on classes that are already available elsewhere in the application or Java runtime.
 
 For example:
 
 ```text
-ReportGenerator.class → loaded from the external JAR
-PdfFormatter.class    → loaded from the external JAR
-LoggingService.class  → may already exist in the parent application
+ReportGenerator.class → loaded by DynamicClassLoader
+PdfFormatter.class    → loaded by DynamicClassLoader
+LoggingService.class  → may already exist in the parent
 String.class          → provided by the Java runtime
 ArrayList.class       → provided by the Java runtime
 ```
 
-Java normally uses **parent-first delegation**. The dynamically created class loader can therefore reuse classes already available to the parent instead of loading independent copies.
+Because delegation is recursive, asking the parent to load a class may cause the request to continue further up the class-loader hierarchy.
+
+Conceptually:
+
+```text
+Bootstrap ClassLoader
+        ↑
+Platform ClassLoader
+        ↑
+Application ClassLoader
+        ↑
+DynamicClassLoader
+```
+
+Each loader delegates to its own parent, producing the complete delegation chain.
+
+<br>
+
+## `loadClass()` vs `findClass()`
+
+The distinction between these methods is central to the project.
+
+`loadClass()` coordinates the normal loading process, including parent delegation.
+
+`findClass()` is responsible for locating and defining a class that could not be loaded by the parent.
+
+The project should normally preserve the existing `loadClass()` implementation provided by `ClassLoader` and customize `findClass()` instead.
+
+Conceptually:
+
+```text
+loadClass()
+    ↓
+delegation logic
+    ↓
+findClass()
+    ↓
+custom bytecode lookup
+```
+
+Overriding `loadClass()` should only be considered if the project intentionally wants to change Java's normal delegation strategy.
+
+<br>
+
+## Reading and defining classes
+
+When a class cannot be obtained from the parent, `DynamicClassLoader` should locate the corresponding `.class` file.
+
+A fully qualified class name such as:
+
+```text
+com.example.ReportGenerator
+```
+
+corresponds conceptually to:
+
+```text
+com/example/ReportGenerator.class
+```
+
+The loader then:
+
+```text
+locates the .class file
+        ↓
+reads its bytes
+        ↓
+passes the bytes to defineClass(...)
+        ↓
+receives Class<?>
+```
+
+`defineClass()` is the point at which the bytecode becomes a JVM class associated with this particular `ClassLoader`.
+
+<br>
+
+## Class identity
+
+In Java, a class is not identified only by its fully qualified name.
+
+Its identity is effectively determined by:
+
+```text
+class name + defining ClassLoader
+```
+
+Therefore, two loaders may load bytecode representing classes with exactly the same name and still produce different JVM types.
+
+Conceptually:
+
+```text
+Loader A → com.example.Widget
+Loader B → com.example.Widget
+```
+
+These two `Widget` classes may not be assignment-compatible even though their names are identical.
+
+This behavior is one of the main concepts the project should demonstrate through tests.
+
+<br>
+
+## Lazy class loading
+
+Loading one class does not necessarily cause all of its dependencies to be loaded immediately.
+
+For example:
+
+```text
+ReportGenerator
+    ↓
+loaded now
+
+PdfFormatter
+    ↓
+may only be loaded later when first required
+```
+
+The `DynamicClassLoader` therefore needs to remain available for as long as dynamically loaded classes may still require additional classes.
 
 <br>
 
 ## Class-loader lifecycle
 
-The class loader must remain open for as long as dynamically loaded classes may still need additional classes or resources from the JAR.
+Unlike a `URLClassLoader`, a custom `ClassLoader` does not necessarily own closeable resources.
 
-A class may be loaded first and only later require another class from the same JAR.
+If the implementation opens files, archives or streams that remain active, their lifecycle must be managed explicitly.
 
-Therefore:
+Whenever possible, class bytecode should be read using short-lived resources so that the `ClassLoader` itself does not require an explicit `close()` operation.
 
-```text
-create DynamicClassLoader
-        ↓
-load class
-        ↓
-use dynamically loaded objects/classes
-        ↓
-keep class loader alive
-        ↓
-close when no longer needed
-```
-
-The library should make this lifecycle explicit and easy to manage, preferably through `Closeable` / try-with-resources when appropriate.
+If future implementations introduce persistent resources, ownership and closing semantics should remain explicit.
 
 <br>
 
@@ -154,7 +295,31 @@ The library should make this lifecycle explicit and easy to manage, preferably t
 
 The project is intentionally small.
 
-The goal is not to build a complete module system or plugin framework. The goal is to create a focused reusable Java library around dynamic class loading.
+The goal is not to build:
+
+- a complete module system;
+- a plugin framework;
+- a dependency injection container;
+- a custom JVM class-loading subsystem.
+
+The goal is to create a focused reusable library while learning and exposing the fundamental mechanics of Java class loading.
+
+<br>
+
+## Tests
+
+The project should include tests that demonstrate both functionality and class-loader behavior.
+
+Useful scenarios include:
+
+- loading a class that exists only in the custom source;
+- loading a class that exists only in the parent;
+- confirming parent-first delegation;
+- loading a class with dependencies;
+- attempting to load a missing class;
+- loading the same class through two different `DynamicClassLoader` instances;
+- verifying that classes with the same name but different defining loaders are different JVM types;
+- verifying lazy loading of dependent classes.
 
 <br>
 
@@ -162,18 +327,22 @@ The goal is not to build a complete module system or plugin framework. The goal 
 
 - Java 25
 - IntelliJ IDEA
-- Build tool: to be decided; Maven is a likely option if the library is published and consumed as a dependency.
+- Maven
 
 <br>
 
 ## Development priorities
 
-1. Define a small and focused public API.
-2. Implement dynamic class loading from external JAR files.
-3. Support parent `ClassLoader` delegation.
-4. Preserve explicit ownership and closing of the underlying `URLClassLoader`.
-5. Add unit tests for successful and failed class loading.
-6. Package the library as a reusable JAR.
-7. Optionally publish the JAR to GitHub Packages, Nexus, or another Maven-compatible repository.
+1. Create a custom `ClassLoader`.
+2. Implement class lookup through `findClass()`.
+3. Convert fully qualified class names into `.class` paths.
+4. Read class bytecode from an external source.
+5. Define classes using `defineClass()`.
+6. Preserve Java's parent-first delegation behavior.
+7. Add tests for parent delegation.
+8. Add tests for class identity across different class loaders.
+9. Add tests for lazy dependency loading.
+10. Refine the source abstraction if support for multiple source types becomes useful.
+11. Package the library as a reusable JAR.
 
 <br>
