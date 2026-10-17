@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.edam</groupId>
-    <artifactId>dynamic-class-loader</artifactId>
+    <artifactId>edam-classloader</artifactId>
     <version>1.0-SNAPSHOT</version>
 
     <properties>
