@@ -356,14 +356,15 @@ Useful scenarios include:
 
 1. Create a custom `ClassLoader`.
 2. Implement class lookup through `findClass()`.
-3. Convert fully qualified class names into `.class` paths.
-4. Read class bytecode from an external source.
+3. Support class bytecode retrieval from filesystem directories.
+4. Support class bytecode retrieval from JAR archives.
 5. Define classes using `defineClass()`.
 6. Preserve Java's parent-first delegation behavior.
-7. Add tests for parent delegation.
-8. Add tests for class identity across different class loaders.
-9. Add tests for lazy dependency loading.
-10. Refine the source abstraction if support for multiple source types becomes useful.
-11. Package the library as a reusable JAR.
+7. Add tests for loading classes from different sources.
+8. Add tests for parent delegation.
+9. Add tests for class identity across different class loaders.
+10. Add tests for lazy dependency loading.
+11. Keep bytecode retrieval extensible without unnecessary abstractions.
+12. Package the library as a reusable JAR.
 
 <br>
