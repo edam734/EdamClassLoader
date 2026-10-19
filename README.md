@@ -121,34 +121,17 @@ The class loader should simply load classes.
 
 <br>
 
-## Initial API idea
+## API Design
 
-A minimal first version may look conceptually like this:
+The library should expose a small API based on a custom ClassLoader.
 
-```java
-public final class EdamClassLoader extends ClassLoader {
+The essential responsibilities are:
 
-    private final Path root;
+- receiving the bytecode source and parent ClassLoader;
+- implementing findClass() to locate and define classes;
+- relying on the inherited loadClass() implementation for normal parent-first delegation.
 
-    public EdamClassLoader(Path root, ClassLoader parent) {
-        super(parent);
-        this.root = Objects.requireNonNull(root, "root");
-    }
-
-    @Override
-    protected Class<?> findClass(String className)
-            throws ClassNotFoundException {
-
-        // Convert the fully qualified class name into a path,
-        // read the corresponding .class bytes,
-        // and define the class through defineClass(...).
-
-        throw new UnsupportedOperationException();
-    }
-}
-```
-
-This is only the starting design. The exact source abstraction and public API can be refined during development.
+The exact source abstraction should remain simple and avoid unnecessary interfaces or additional layers.
 
 <br>
 
