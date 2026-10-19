@@ -59,6 +59,42 @@ Class<?>
 
 <br>
 
+## Bytecode Sources
+
+A custom ClassLoader is not limited to reading individual `.class` files. Class bytecode can be obtained from several sources:
+
+- Class files: Read .class files directly from the filesystem.
+- JAR files: Locate and read class entries inside JAR archives.
+- Network: Retrieve class bytecode from a remote server, for example, through HTTP.
+- Memory: Load bytecode already available in memory, including dynamically generated or compiled classes.
+- Database: Retrieve class bytecode stored in a database.
+
+EdamClassLoader should support loading classes from filesystem directories and JAR archives, while keeping the design flexible enough to accommodate other bytecode sources.
+
+<br>
+
+## Bytecode transformation
+
+A custom `ClassLoader` may also modify bytecode before defining a class.
+
+For example, bytecode instrumentation can introduce additional instructions for logging, monitoring or performance measurement.
+
+Conceptually:
+
+Retrieve class bytecode
+        ↓
+Optional bytecode transformation
+        ↓
+defineClass(...)
+        ↓
+Class<?>
+
+The resulting bytecode must remain valid for the JVM.
+
+Bytecode transformation is not a core requirement of this library, but it is an additional capability worth exploring.
+
+<br>
+
 ## What does NOT belong here
 
 This project must not know anything about plugins, dependency injection or application-specific rules.
