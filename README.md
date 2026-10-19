@@ -79,6 +79,7 @@ A custom `ClassLoader` may also modify bytecode before defining a class.
 
 For example, bytecode instrumentation can introduce additional instructions for logging, monitoring or performance measurement.
 
+```text
 Conceptually:
 
 Retrieve class bytecode
@@ -88,6 +89,7 @@ Optional bytecode transformation
 defineClass(...)
         ↓
 Class<?>
+```
 
 The resulting bytecode must remain valid for the JVM.
 
