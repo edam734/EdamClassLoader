@@ -59,6 +59,44 @@ Class<?>
 
 <br>
 
+## Bytecode Sources
+
+A custom ClassLoader is not limited to reading individual `.class` files. Class bytecode can be obtained from several sources:
+
+- Class files: Read .class files directly from the filesystem.
+- JAR files: Locate and read class entries inside JAR archives.
+- Network: Retrieve class bytecode from a remote server, for example, through HTTP.
+- Memory: Load bytecode already available in memory, including dynamically generated or compiled classes.
+- Database: Retrieve class bytecode stored in a database.
+
+EdamClassLoader should support loading classes from filesystem directories and JAR archives, while keeping the design flexible enough to accommodate other bytecode sources.
+
+<br>
+
+## Bytecode transformation
+
+A custom `ClassLoader` may also modify bytecode before defining a class.
+
+For example, bytecode instrumentation can introduce additional instructions for logging, monitoring or performance measurement.
+
+```text
+Conceptually:
+
+Retrieve class bytecode
+        ↓
+Optional bytecode transformation
+        ↓
+defineClass(...)
+        ↓
+Class<?>
+```
+
+The resulting bytecode must remain valid for the JVM.
+
+Bytecode transformation is not a core requirement of this library, but it is an additional capability worth exploring.
+
+<br>
+
 ## What does NOT belong here
 
 This project must not know anything about plugins, dependency injection or application-specific rules.
@@ -83,34 +121,17 @@ The class loader should simply load classes.
 
 <br>
 
-## Initial API idea
+## API Design
 
-A minimal first version may look conceptually like this:
+The library should expose a small API based on a custom ClassLoader.
 
-```java
-public final class EdamClassLoader extends ClassLoader {
+The essential responsibilities are:
 
-    private final Path root;
+- receiving the bytecode source and parent ClassLoader;
+- implementing findClass() to locate and define classes;
+- relying on the inherited loadClass() implementation for normal parent-first delegation.
 
-    public EdamClassLoader(Path root, ClassLoader parent) {
-        super(parent);
-        this.root = Objects.requireNonNull(root, "root");
-    }
-
-    @Override
-    protected Class<?> findClass(String className)
-            throws ClassNotFoundException {
-
-        // Convert the fully qualified class name into a path,
-        // read the corresponding .class bytes,
-        // and define the class through defineClass(...).
-
-        throw new UnsupportedOperationException();
-    }
-}
-```
-
-This is only the starting design. The exact source abstraction and public API can be refined during development.
+The exact source abstraction should remain simple and avoid unnecessary interfaces or additional layers.
 
 <br>
 
@@ -335,14 +356,15 @@ Useful scenarios include:
 
 1. Create a custom `ClassLoader`.
 2. Implement class lookup through `findClass()`.
-3. Convert fully qualified class names into `.class` paths.
-4. Read class bytecode from an external source.
+3. Support class bytecode retrieval from filesystem directories.
+4. Support class bytecode retrieval from JAR archives.
 5. Define classes using `defineClass()`.
 6. Preserve Java's parent-first delegation behavior.
-7. Add tests for parent delegation.
-8. Add tests for class identity across different class loaders.
-9. Add tests for lazy dependency loading.
-10. Refine the source abstraction if support for multiple source types becomes useful.
-11. Package the library as a reusable JAR.
+7. Add tests for loading classes from different sources.
+8. Add tests for parent delegation.
+9. Add tests for class identity across different class loaders.
+10. Add tests for lazy dependency loading.
+11. Keep bytecode retrieval extensible without unnecessary abstractions.
+12. Package the library as a reusable JAR.
 
 <br>
