@@ -94,13 +94,11 @@ public class EdamClassLoaderTest {
 
     @Test
     void shouldLoadClassFromFirstMatchingRoot() throws Exception {
-        Path[] roots = {
-                Path.of("C:/temp/classes"),
-                Path.of("test-examples", "edam-classloader-example.jar")
-        };
+        Path[] roots = {Path.of("C:/temp/classes"), Path.of("test-examples",
+                "edam-classloader-example.jar")};
 
-        EdamClassLoader edamClassLoader = new EdamClassLoader(
-                roots, ClassLoader.getSystemClassLoader());
+        EdamClassLoader edamClassLoader = new EdamClassLoader(roots,
+                ClassLoader.getSystemClassLoader());
 
         Class<?> loadedClass = edamClassLoader.loadClass("com.example.Hello");
 
@@ -109,5 +107,24 @@ public class EdamClassLoaderTest {
 
         assertSame(edamClassLoader, loadedClass.getClassLoader());
         assertEquals("Hello from EdamClassLoader!", result);
+    }
+
+    @Test
+    void shouldLoadDistinctClassesFromDifferentClassLoaders() throws Exception {
+        Path[] roots = {Path.of("C:/temp/classes")};
+
+        EdamClassLoader loaderA = new EdamClassLoader(roots,
+                ClassLoader.getSystemClassLoader());
+
+        EdamClassLoader loaderB = new EdamClassLoader(roots,
+                ClassLoader.getSystemClassLoader());
+
+        Class<?> clazzA = loaderA.loadClass("com.example.Hello");
+        Class<?> clazzB = loaderB.loadClass("com.example.Hello");
+
+        assertNotSame(clazzA, clazzB);
+
+        assertSame(loaderA, clazzA.getClassLoader());
+        assertSame(loaderB, clazzB.getClassLoader());
     }
 }
