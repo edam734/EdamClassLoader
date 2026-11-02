@@ -81,7 +81,7 @@ public class EdamClassLoaderTest {
     }
 
     @Test
-    void shouldThrowClassNotFoundExceptionWhenClassDoesNotExist() throws Exception {
+    void shouldThrowClassNotFoundExceptionWhenClassDoesNotExist() {
         Path[] roots = {Path.of("C:/temp/classes"), Path.of("test-examples",
                 "edam-classloader-example.jar"), Path.of("C:/dir")};
 
