@@ -79,4 +79,19 @@ public class EdamClassLoaderTest {
 
         assertEquals("avaJ", result);
     }
+
+    @Test
+    void shouldLoadClassFromParentClassLoader() throws Exception {
+        Path[] roots = {
+                Path.of("test-examples")
+        };
+
+        ClassLoader parent = ClassLoader.getSystemClassLoader();
+
+        EdamClassLoader edamClassLoader = new EdamClassLoader(roots, parent);
+
+        Class<?> loadedClass = edamClassLoader.loadClass("com.example.ParentGreeting");
+
+        assertSame(parent, loadedClass.getClassLoader());
+    }
 }
