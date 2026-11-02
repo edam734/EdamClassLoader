@@ -91,4 +91,23 @@ public class EdamClassLoaderTest {
         assertThrows(ClassNotFoundException.class,
                 () -> edamClassLoader.loadClass("com.example.NonExistent"));
     }
+
+    @Test
+    void shouldLoadClassFromFirstMatchingRoot() throws Exception {
+        Path[] roots = {
+                Path.of("C:/temp/classes"),
+                Path.of("test-examples", "edam-classloader-example.jar")
+        };
+
+        EdamClassLoader edamClassLoader = new EdamClassLoader(
+                roots, ClassLoader.getSystemClassLoader());
+
+        Class<?> loadedClass = edamClassLoader.loadClass("com.example.Hello");
+
+        Object instance = loadedClass.getDeclaredConstructor().newInstance();
+        Object result = loadedClass.getMethod("sayHello").invoke(instance);
+
+        assertSame(edamClassLoader, loadedClass.getClassLoader());
+        assertEquals("Hello from EdamClassLoader!", result);
+    }
 }
