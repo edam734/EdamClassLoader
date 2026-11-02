@@ -1,4 +1,5 @@
 package com.edam.classloader;
+
 import org.junit.jupiter.api.Test;
 
 import java.nio.file.Path;
@@ -9,14 +10,10 @@ public class EdamClassLoaderTest {
 
     @Test
     void shouldLoadClassFromDirectory() throws ClassNotFoundException {
-        Path[] roots = {
-                Path.of("C:/temp/classes")
-        };
+        Path[] roots = {Path.of("C:/temp/classes")};
 
-        EdamClassLoader edamClassLoader = new EdamClassLoader(
-                roots,
-                ClassLoader.getSystemClassLoader()
-        );
+        EdamClassLoader edamClassLoader = new EdamClassLoader(roots,
+                ClassLoader.getSystemClassLoader());
 
         Class<?> loadedClass = edamClassLoader.loadClass("com.example.Hello");
 
@@ -26,14 +23,10 @@ public class EdamClassLoaderTest {
 
     @Test
     void shouldLoadClassFromJar() throws Exception {
-        Path[] roots = {
-                Path.of("test-examples", "edam-classloader-example.jar")
-        };
+        Path[] roots = {Path.of("test-examples", "edam-classloader-example.jar")};
 
-        EdamClassLoader edamClassLoader = new EdamClassLoader(
-                roots,
-                ClassLoader.getSystemClassLoader()
-        );
+        EdamClassLoader edamClassLoader = new EdamClassLoader(roots,
+                ClassLoader.getSystemClassLoader());
 
         Class<?> loadedClass = edamClassLoader.loadClass("com.example.ReportGenerator");
 
@@ -47,16 +40,11 @@ public class EdamClassLoaderTest {
 
     @Test
     void shouldLoadClassesFromMultipleRoots() throws Exception {
-        Path[] roots = {
-                Path.of("C:/temp/classes"),
-                Path.of("test-examples", "edam-classloader-example.jar"),
-                Path.of("C:/dir")
-        };
+        Path[] roots = {Path.of("C:/temp/classes"), Path.of("test-examples",
+                "edam-classloader-example.jar"), Path.of("C:/dir")};
 
-        EdamClassLoader edamClassLoader = new EdamClassLoader(
-                roots,
-                ClassLoader.getSystemClassLoader()
-        );
+        EdamClassLoader edamClassLoader = new EdamClassLoader(roots,
+                ClassLoader.getSystemClassLoader());
 
         // First root: directory
         Class<?> helloClass = edamClassLoader.loadClass("com.example.Hello");
@@ -74,17 +62,14 @@ public class EdamClassLoaderTest {
 
         // Verify a method from the third root
         Object instance = reverserClass.getDeclaredConstructor().newInstance();
-        Object result = reverserClass.getMethod("reverse", String.class)
-                .invoke(instance, "Java");
+        Object result = reverserClass.getMethod("reverse", String.class).invoke(instance, "Java");
 
         assertEquals("avaJ", result);
     }
 
     @Test
     void shouldLoadClassFromParentClassLoader() throws Exception {
-        Path[] roots = {
-                Path.of("test-examples")
-        };
+        Path[] roots = {Path.of("test-examples")};
 
         ClassLoader parent = ClassLoader.getSystemClassLoader();
 
@@ -93,5 +78,17 @@ public class EdamClassLoaderTest {
         Class<?> loadedClass = edamClassLoader.loadClass("com.example.ParentGreeting");
 
         assertSame(parent, loadedClass.getClassLoader());
+    }
+
+    @Test
+    void shouldThrowClassNotFoundExceptionWhenClassDoesNotExist() throws Exception {
+        Path[] roots = {Path.of("C:/temp/classes"), Path.of("test-examples",
+                "edam-classloader-example.jar"), Path.of("C:/dir")};
+
+        EdamClassLoader edamClassLoader = new EdamClassLoader(roots,
+                ClassLoader.getSystemClassLoader());
+
+        assertThrows(ClassNotFoundException.class,
+                () -> edamClassLoader.loadClass("com.example.NonExistent"));
     }
 }
