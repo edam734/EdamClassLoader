@@ -2,6 +2,7 @@ package com.edam.classloader;
 
 import org.junit.jupiter.api.Test;
 
+import java.net.URI;
 import java.nio.file.Path;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -10,7 +11,7 @@ public class EdamClassLoaderTest {
 
     @Test
     void shouldLoadClassFromDirectory() throws ClassNotFoundException {
-        Path[] roots = {Path.of("C:/temp/classes")};
+        URI[] roots = {Path.of("C:/temp/classes").toUri()};
 
         EdamClassLoader edamClassLoader = new EdamClassLoader(roots,
                 ClassLoader.getSystemClassLoader());
@@ -23,7 +24,7 @@ public class EdamClassLoaderTest {
 
     @Test
     void shouldLoadClassFromJar() throws Exception {
-        Path[] roots = {Path.of("test-examples", "edam-classloader-example.jar")};
+        URI[] roots = {Path.of("test-examples", "edam-classloader-example.jar").toUri()};
 
         EdamClassLoader edamClassLoader = new EdamClassLoader(roots,
                 ClassLoader.getSystemClassLoader());
@@ -40,8 +41,8 @@ public class EdamClassLoaderTest {
 
     @Test
     void shouldLoadClassesFromMultipleRoots() throws Exception {
-        Path[] roots = {Path.of("C:/temp/classes"), Path.of("test-examples",
-                "edam-classloader-example.jar"), Path.of("C:/dir")};
+        URI[] roots = {Path.of("C:/temp/classes").toUri(), Path.of("test-examples",
+                "edam-classloader-example.jar").toUri(), Path.of("C:/dir").toUri()};
 
         EdamClassLoader edamClassLoader = new EdamClassLoader(roots,
                 ClassLoader.getSystemClassLoader());
@@ -69,7 +70,7 @@ public class EdamClassLoaderTest {
 
     @Test
     void shouldLoadClassFromParentClassLoader() throws Exception {
-        Path[] roots = {Path.of("test-examples")};
+        URI[] roots = {Path.of("test-examples").toUri()};
 
         ClassLoader parent = ClassLoader.getSystemClassLoader();
 
@@ -82,8 +83,8 @@ public class EdamClassLoaderTest {
 
     @Test
     void shouldThrowClassNotFoundExceptionWhenClassDoesNotExist() {
-        Path[] roots = {Path.of("C:/temp/classes"), Path.of("test-examples",
-                "edam-classloader-example.jar"), Path.of("C:/dir")};
+        URI[] roots = {Path.of("C:/temp/classes").toUri(), Path.of("test-examples",
+                "edam-classloader-example.jar").toUri(), Path.of("C:/dir").toUri()};
 
         EdamClassLoader edamClassLoader = new EdamClassLoader(roots,
                 ClassLoader.getSystemClassLoader());
@@ -94,8 +95,8 @@ public class EdamClassLoaderTest {
 
     @Test
     void shouldLoadClassFromFirstMatchingRoot() throws Exception {
-        Path[] roots = {Path.of("C:/temp/classes"), Path.of("test-examples",
-                "edam-classloader-example.jar")};
+        URI[] roots = {Path.of("C:/temp/classes").toUri(), Path.of("test-examples",
+                "edam-classloader-example.jar").toUri()};
 
         EdamClassLoader edamClassLoader = new EdamClassLoader(roots,
                 ClassLoader.getSystemClassLoader());
@@ -110,14 +111,12 @@ public class EdamClassLoaderTest {
     }
 
     @Test
-    void shouldLoadDistinctClassesFromDifferentClassLoaders() throws Exception {
-        Path[] roots = {Path.of("C:/temp/classes")};
+    void URI() throws Exception {
+        URI[] roots = {Path.of("C:/temp/classes").toUri()};
 
-        EdamClassLoader loaderA = new EdamClassLoader(roots,
-                ClassLoader.getSystemClassLoader());
+        EdamClassLoader loaderA = new EdamClassLoader(roots, ClassLoader.getSystemClassLoader());
 
-        EdamClassLoader loaderB = new EdamClassLoader(roots,
-                ClassLoader.getSystemClassLoader());
+        EdamClassLoader loaderB = new EdamClassLoader(roots, ClassLoader.getSystemClassLoader());
 
         Class<?> clazzA = loaderA.loadClass("com.example.Hello");
         Class<?> clazzB = loaderB.loadClass("com.example.Hello");

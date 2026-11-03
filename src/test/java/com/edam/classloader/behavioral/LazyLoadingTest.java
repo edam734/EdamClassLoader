@@ -2,6 +2,7 @@ package com.edam.classloader.behavioral;
 
 import com.edam.classloader.EdamClassLoader;
 
+import java.net.URI;
 import java.nio.file.Path;
 
 public class LazyLoadingTest {
@@ -23,7 +24,7 @@ public class LazyLoadingTest {
      * are loaded is determined by the JVM and is not guaranteed.
      */
     static void main(String[] args) throws Exception {
-        Path[] roots = {Path.of("test-examples", "edam-classloader-example.jar")};
+        URI[] roots = {Path.of("test-examples", "edam-classloader-example.jar").toUri()};
 
         EdamClassLoader edamClassLoader = new EdamClassLoader(roots,
                 ClassLoader.getSystemClassLoader());
