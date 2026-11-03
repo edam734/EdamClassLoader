@@ -27,7 +27,7 @@ public final class EdamClassLoader extends ClassLoader {
             System.out.println("scheme: " + scheme);
             if (scheme.equalsIgnoreCase("http") || scheme.equalsIgnoreCase("https")) {
                 URI fullPath = resolveToFullPath(roots[i], classFilePath);
-                bytes = RemoteClassReader.searchRemote(fullPath);
+                bytes = RemoteClassReader.readRemoteClass(fullPath);
             } else if (scheme.equalsIgnoreCase("file")) {
                 Path root = Path.of(roots[i]);
                 if (Files.isDirectory(root)) {

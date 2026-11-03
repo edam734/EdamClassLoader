@@ -9,7 +9,7 @@ import java.net.http.HttpResponse;
 public class RemoteClassReader {
     private static final HttpClient client = HttpClient.newHttpClient();
 
-    public static byte[] searchRemote(URI uri) {
+    public static byte[] readRemoteClass(URI uri) {
         HttpRequest request = HttpRequest.newBuilder().uri(uri).GET().build();
 
         try {
