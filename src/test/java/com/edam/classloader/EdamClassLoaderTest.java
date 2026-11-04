@@ -126,4 +126,20 @@ public class EdamClassLoaderTest {
         assertSame(loaderA, clazzA.getClassLoader());
         assertSame(loaderB, clazzB.getClassLoader());
     }
+
+    @Test
+    void shouldLoadClassFromRemoteServer() throws Exception {
+        URI[] roots = new URI[]{URI.create("http://localhost:8000/")};
+
+        EdamClassLoader edamClassLoader = new EdamClassLoader(roots,
+                ClassLoader.getSystemClassLoader());
+
+        Class<?> loadedClass = edamClassLoader.loadClass("com.example.RemoteHello");
+
+        Object instance = loadedClass.getDeclaredConstructor().newInstance();
+        Object result = loadedClass.getMethod("sayHello").invoke(instance);
+
+        assertSame(edamClassLoader, loadedClass.getClassLoader());
+        assertEquals("Hello from the remote server!", result);
+    }
 }
