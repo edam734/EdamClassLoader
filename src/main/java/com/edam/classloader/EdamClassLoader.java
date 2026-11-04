@@ -1,14 +1,13 @@
 package com.edam.classloader;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Objects;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
+import java.util.jar.JarInputStream;
 
 public final class EdamClassLoader extends ClassLoader {
     private final URI[] roots;
@@ -24,10 +23,14 @@ public final class EdamClassLoader extends ClassLoader {
         String classFilePath = className.replace(".", "/") + ".class";
         for (int i = 0; i < roots.length && bytes == null; i++) {
             String scheme = roots[i].getScheme();
-            System.out.println("scheme: " + scheme);
             if (scheme.equalsIgnoreCase("http") || scheme.equalsIgnoreCase("https")) {
-                URI fullPath = resolveToFullPath(roots[i], classFilePath);
-                bytes = RemoteClassReader.readRemoteClass(fullPath);
+                if (!roots[i].getPath().toLowerCase().endsWith(".jar")) {
+                    URI fullPath = resolveToFullPath(roots[i], classFilePath);
+                    bytes = RemoteClassReader.readRemoteBytes(fullPath);
+                } else {
+                    byte[] jarBytes = RemoteClassReader.readRemoteBytes(roots[i]);
+                    bytes = readJarBytes(className, classFilePath, jarBytes);
+                }
             } else if (scheme.equalsIgnoreCase("file")) {
                 Path root = Path.of(roots[i]);
                 if (Files.isDirectory(root)) {
@@ -73,15 +76,38 @@ public final class EdamClassLoader extends ClassLoader {
     private static byte[] readJarEntry(String className, JarEntry entry, JarFile jarFile) throws
             ClassNotFoundException {
         if (entry != null) {
-            try (InputStream inputStream = jarFile.getInputStream(entry);
-                 ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream()) {
-
-                inputStream.transferTo(byteArrayOutputStream);
-                return byteArrayOutputStream.toByteArray();
+            try (InputStream inputStream = jarFile.getInputStream(entry)) {
+                return inputStream.readAllBytes();
             } catch (IOException e) {
                 throw new ClassNotFoundException("Could not load class: " + className, e);
             }
         }
         return null;
+    }
+
+    private static byte[] readJarBytes(String className, String classFilePath,
+                                       byte[] jarBytes) throws ClassNotFoundException {
+        byte[] bytes = null;
+        if (jarBytes != null) {
+            try (JarInputStream jarInputStream = new JarInputStream(
+                    new ByteArrayInputStream(jarBytes))) {
+                boolean found = false;
+                JarEntry jarEntry;
+                while (!found && (jarEntry = jarInputStream.getNextJarEntry()) != null) {
+                    if (jarEntry.getName().equals(classFilePath)) {
+                        found = true;
+                        try {
+                            bytes = jarInputStream.readAllBytes();
+                        } catch (IOException e) {
+                            throw new ClassNotFoundException("Could not load class: " + className,
+                                    e);
+                        }
+                    }
+                }
+            } catch (IOException e) {
+                // Continue searching in the remaining roots.
+            }
+        }
+        return bytes;
     }
 }

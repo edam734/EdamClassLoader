@@ -83,7 +83,7 @@ public class EdamClassLoaderTest {
 
     @Test
     void shouldThrowClassNotFoundExceptionWhenClassDoesNotExist() {
-        URI[] roots = {Path.of("C:/temp/classes").toUri(), Path.of("test-examples",
+        URI[] roots = {Path.of("C:/temp/classes").toUri(), Path.of("test-examples/jars",
                 "edam-classloader-example.jar").toUri(), Path.of("C:/dir").toUri()};
 
         EdamClassLoader edamClassLoader = new EdamClassLoader(roots,
@@ -129,10 +129,29 @@ public class EdamClassLoaderTest {
 
     @Test
     void shouldLoadClassFromRemoteServer() throws Exception {
-        URI[] roots = new URI[]{URI.create("http://localhost:8000/")};
+        URI[] roots = new URI[]{URI.create("http://localhost:8000/classes")};
 
         EdamClassLoader edamClassLoader = new EdamClassLoader(roots,
                 ClassLoader.getSystemClassLoader());
+
+        Class<?> loadedClass = edamClassLoader.loadClass("com.example.RemoteHello");
+
+        Object instance = loadedClass.getDeclaredConstructor().newInstance();
+        Object result = loadedClass.getMethod("sayHello").invoke(instance);
+
+        assertSame(edamClassLoader, loadedClass.getClassLoader());
+        assertEquals("Hello from the remote server!", result);
+    }
+
+    @Test
+    void shouldLoadClassFromRemoteJar() throws Exception {
+        URI[] roots = {
+                URI.create("http://localhost:8000/jars/remote-hello-test.jar")
+        };
+
+        EdamClassLoader edamClassLoader = new EdamClassLoader(
+                roots, ClassLoader.getSystemClassLoader()
+        );
 
         Class<?> loadedClass = edamClassLoader.loadClass("com.example.RemoteHello");
 
