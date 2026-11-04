@@ -1,87 +1,140 @@
 # EdamClassLoader
 
-<br>
-
 Small Java library for dynamic class loading through a custom `ClassLoader`.
-
-<br>
 
 ## Goal
 
 The purpose of this project is to provide a small reusable Java library that implements the core mechanics of dynamic class loading.
 
-Instead of relying entirely on `URLClassLoader`, the project should use a custom `ClassLoader` so that the class-loading process remains explicit and understandable.
+Instead of relying entirely on `URLClassLoader`, the project uses a custom `ClassLoader` so that the class-loading process remains explicit and understandable.
 
-The library should support:
+The library supports:
 
 - loading classes dynamically by fully qualified name;
 - delegating to a parent `ClassLoader`;
-- locating class bytecode from an external source;
+- locating class bytecode from multiple sources;
+- loading classes from local directories and JAR archives;
+- retrieving classes and JAR archives through HTTP/HTTPS;
 - defining classes through `defineClass()`;
-- preserving Java's normal lazy class-loading behavior.
+- supporting on-demand class loading.
 
 The project should remain **small, generic and focused exclusively on class loading**.
 
-<br>
-
 ## Responsibilities
 
-`EdamClassLoader` should be responsible for:
+`EdamClassLoader` is responsible for:
 
-- accepting a source from which class bytecode can be obtained;
+- accepting multiple bytecode sources through `URI[]`;
 - accepting a parent `ClassLoader`;
 - participating in the normal parent delegation model;
-- locating the bytecode of classes that are not available through the parent;
-- reading the corresponding `.class` bytes;
+- searching configured sources in the specified order;
+- locating the bytecode of classes unavailable through the parent;
+- retrieving class bytes from local or remote sources;
 - defining classes through `defineClass()`;
 - loading classes by fully qualified name;
-- allowing additional dependent classes to be loaded later when required by the JVM.
+- allowing dependent classes to be loaded later when required by the JVM.
 
 Conceptually:
 
 ```text
-class name
+Class name
     ↓
 EdamClassLoader
     ↓
-delegate to parent
+Delegate to parent
     ↓
-if not found
+If not found
     ↓
-locate class bytecode
+Search configured sources
     ↓
-read .class bytes
+Retrieve class bytecode
     ↓
 defineClass(...)
     ↓
 Class<?>
 ```
 
-<br>
-
 ## Bytecode Sources
 
-A custom ClassLoader is not limited to reading individual `.class` files. Class bytecode can be obtained from several sources:
+A custom `ClassLoader` is not limited to reading individual `.class` files. Class bytecode can be obtained from several sources:
 
-- Class files: Read .class files directly from the filesystem.
-- JAR files: Locate and read class entries inside JAR archives.
-- Network: Retrieve class bytecode from a remote server, for example, through HTTP.
-- Memory: Load bytecode already available in memory, including dynamically generated or compiled classes.
-- Database: Retrieve class bytecode stored in a database.
+- **Class files:** Read `.class` files directly from the filesystem.
+- **JAR files:** Locate and read class entries inside JAR archives.
+- **Network:** Retrieve class bytecode or JAR archives from remote servers through HTTP/HTTPS.
+- **Memory:** Load bytecode already available in memory, including dynamically generated or compiled classes.
+- **Database:** Retrieve class bytecode stored in a database.
 
-EdamClassLoader should support loading classes from filesystem directories and JAR archives, while keeping the design flexible enough to accommodate other bytecode sources.
+`EdamClassLoader` supports local filesystem sources and HTTP/HTTPS locations through a common `URI[]` configuration.
 
-<br>
+### Local sources
 
-## Bytecode transformation
+Local sources may refer to directories containing `.class` files or to JAR archives.
+
+The loader uses:
+
+- `Files` to read individual class files;
+- `JarFile` and `JarEntry` to locate classes inside JAR archives.
+
+### Remote sources
+
+Remote sources are accessed using Java's `HttpClient`.
+
+The `RemoteClassReader` component is responsible for making HTTP requests and retrieving byte arrays through `readRemoteBytes()`.
+
+Two scenarios are supported:
+
+**Individual class files**
+
+The loader constructs the class URL from the configured remote directory and the requested class name.
+
+For example:
+
+```text
+Root:
+https://example.com/classes/
+
+Class:
+com.example.Hello
+
+Request:
+https://example.com/classes/com/example/Hello.class
+```
+
+The received bytecode can be passed directly to `defineClass()`.
+
+**Remote JAR archives**
+
+The loader downloads the JAR as a byte array and reads its contents in memory using `ByteArrayInputStream` and `JarInputStream`.
+
+It then searches for the requested class entry and extracts its bytecode.
+
+```text
+Remote JAR URL
+    ↓
+HTTP request
+    ↓
+JAR bytes in memory
+    ↓
+JarInputStream
+    ↓
+Find requested JarEntry
+    ↓
+Read class bytes
+    ↓
+defineClass(...)
+```
+
+The JAR does not need to be saved permanently to the filesystem.
+
+### Bytecode transformation
 
 A custom `ClassLoader` may also modify bytecode before defining a class.
 
 For example, bytecode instrumentation can introduce additional instructions for logging, monitoring or performance measurement.
 
-```text
 Conceptually:
 
+```text
 Retrieve class bytecode
         ↓
 Optional bytecode transformation
@@ -95,8 +148,6 @@ The resulting bytecode must remain valid for the JVM.
 
 Bytecode transformation is not a core requirement of this library, but it is an additional capability worth exploring.
 
-<br>
-
 ## What does NOT belong here
 
 This project must not know anything about plugins, dependency injection or application-specific rules.
@@ -104,7 +155,7 @@ This project must not know anything about plugins, dependency injection or appli
 The following responsibilities belong to other projects:
 
 - requiring the source to be a plugin JAR;
-- reading manifest entries;
+- reading plugin-specific manifest entries;
 - validating that a class implements a particular interface;
 - instantiating or executing dynamically loaded classes;
 - plugin registries;
@@ -119,21 +170,34 @@ The following responsibilities belong to other projects:
 
 The class loader should simply load classes.
 
-<br>
-
 ## API Design
 
-The library should expose a small API based on a custom ClassLoader.
+The library exposes a small API based on a custom `ClassLoader`.
 
-The essential responsibilities are:
+Its constructor accepts multiple class-loading locations:
 
-- receiving the bytecode source and parent ClassLoader;
-- implementing findClass() to locate and define classes;
-- relying on the inherited loadClass() implementation for normal parent-first delegation.
+```java
+public EdamClassLoader(URI[] roots, ClassLoader parent)
+```
 
-The exact source abstraction should remain simple and avoid unnecessary interfaces or additional layers.
+Using `URI[]` allows the same API to represent local and remote locations.
 
-<br>
+For example:
+
+```text
+file:///C:/temp/classes/
+file:///C:/temp/jars/example.jar
+https://example.com/classes/
+https://example.com/library.jar
+```
+
+The main responsibilities are:
+
+- receiving the bytecode sources and parent `ClassLoader`;
+- implementing `findClass()` to locate and define classes;
+- relying on the inherited `loadClass()` implementation for normal parent-first delegation.
+
+Bytecode retrieval is separated into helper methods where appropriate, keeping `findClass()` focused on coordinating the loading process.
 
 ## Class loading process
 
@@ -144,28 +208,28 @@ Conceptually:
 ```text
 EdamClassLoader.loadClass(...)
         ↓
-check whether class is already loaded
+Check whether class is already loaded
         ↓
-delegate to parent
+Delegate to parent
         ↓
-if parent cannot load it
+If parent cannot load it
         ↓
 EdamClassLoader.findClass(...)
         ↓
-locate bytecode
+Search configured sources
+        ↓
+Retrieve bytecode
         ↓
 defineClass(...)
 ```
 
 This means the custom loader does not need to reimplement the entire loading algorithm.
 
-Its main responsibility is normally to implement `findClass()` and provide a way to obtain the class bytecode.
-
-<br>
+Its main responsibility is to implement `findClass()` and provide a way to obtain the class bytecode.
 
 ## Parent class loader
 
-The library should support a parent `ClassLoader`.
+The library supports a parent `ClassLoader`.
 
 A dynamically loaded class may depend on classes that are already available elsewhere in the application or Java runtime.
 
@@ -195,8 +259,6 @@ EdamClassLoader
 
 Each loader delegates to its own parent, producing the complete delegation chain.
 
-<br>
-
 ## `loadClass()` vs `findClass()`
 
 The distinction between these methods is central to the project.
@@ -205,27 +267,25 @@ The distinction between these methods is central to the project.
 
 `findClass()` is responsible for locating and defining a class that could not be loaded by the parent.
 
-The project should normally preserve the existing `loadClass()` implementation provided by `ClassLoader` and customize `findClass()` instead.
+The project preserves the existing `loadClass()` implementation provided by `ClassLoader` and customizes `findClass()` instead.
 
 Conceptually:
 
 ```text
 loadClass()
     ↓
-delegation logic
+Delegation logic
     ↓
 findClass()
     ↓
-custom bytecode lookup
+Custom bytecode lookup
 ```
 
 Overriding `loadClass()` should only be considered if the project intentionally wants to change Java's normal delegation strategy.
 
-<br>
-
 ## Reading and defining classes
 
-When a class cannot be obtained from the parent, `EdamClassLoader` should locate the corresponding `.class` file.
+When a class cannot be obtained from the parent, `EdamClassLoader` searches its configured sources.
 
 A fully qualified class name such as:
 
@@ -239,21 +299,28 @@ corresponds conceptually to:
 com/example/ReportGenerator.class
 ```
 
-The loader then:
+This path may identify a file inside a filesystem directory, an entry inside a JAR archive or a resource available through HTTP/HTTPS.
+
+The retrieval mechanism depends on the source:
+
+- Local class files are read from the filesystem.
+- Local JAR entries are read through `JarFile`.
+- Remote class files are retrieved through HTTP.
+- Remote JAR entries are extracted from the downloaded archive in memory.
+
+Regardless of the source, the final process is the same:
 
 ```text
-locates the .class file
+Locate class bytecode
         ↓
-reads its bytes
+Retrieve its bytes
         ↓
-passes the bytes to defineClass(...)
+Pass the bytes to defineClass(...)
         ↓
-receives Class<?>
+Receive Class<?>
 ```
 
 `defineClass()` is the point at which the bytecode becomes a JVM class associated with this particular `ClassLoader`.
-
-<br>
 
 ## Class identity
 
@@ -262,7 +329,7 @@ In Java, a class is not identified only by its fully qualified name.
 Its identity is effectively determined by:
 
 ```text
-class name + defining ClassLoader
+Class name + defining ClassLoader
 ```
 
 Therefore, two loaders may load bytecode representing classes with exactly the same name and still produce different JVM types.
@@ -276,9 +343,7 @@ Loader B → com.example.Widget
 
 These two `Widget` classes may not be assignment-compatible even though their names are identical.
 
-This behavior is one of the main concepts the project should demonstrate through tests.
-
-<br>
+This behavior is demonstrated through tests.
 
 ## Lazy class loading
 
@@ -289,28 +354,30 @@ For example:
 ```text
 ReportGenerator
     ↓
-loaded now
+Loaded now
 
 PdfFormatter
     ↓
-may only be loaded later when first required
+May only be loaded later when required
 ```
 
 The `EdamClassLoader` therefore needs to remain available for as long as dynamically loaded classes may still require additional classes.
 
-<br>
+The library does not impose an eager or lazy loading strategy on its consumers. Applications may request classes in advance or only when needed.
 
 ## Class-loader lifecycle
 
 Unlike a `URLClassLoader`, a custom `ClassLoader` does not necessarily own closeable resources.
 
-If the implementation opens files, archives or streams that remain active, their lifecycle must be managed explicitly.
+If the implementation opens files, archives, streams or network connections, their lifecycle must be managed correctly.
 
-Whenever possible, class bytecode should be read using short-lived resources so that the `ClassLoader` itself does not require an explicit `close()` operation.
+The library uses short-lived resources where possible:
+
+- Local JAR files are closed after reading.
+- Input streams are closed after use.
+- Remote bytecode can be held in memory without permanent local files.
 
 If future implementations introduce persistent resources, ownership and closing semantics should remain explicit.
-
-<br>
 
 ## Project scope
 
@@ -321,75 +388,94 @@ The goal is not to build:
 - a complete module system;
 - a plugin framework;
 - a dependency injection container;
+- an HTTP server;
 - a custom JVM class-loading subsystem.
 
 The goal is to create a focused reusable library while learning and exposing the fundamental mechanics of Java class loading.
 
-<br>
-
 ## Tests
 
-The project should include tests that demonstrate both functionality and class-loader behavior.
+The project includes tests that demonstrate both functionality and class-loader behavior.
 
-Useful scenarios include:
+Test scenarios include:
 
-- loading a class that exists only in the custom source;
+- loading a class from an external `.class` file;
+- loading a class from a local JAR archive;
+- loading classes from multiple configured sources;
+- verifying source search order;
 - loading a class that exists only in the parent;
 - confirming parent-first delegation;
 - loading a class with dependencies;
-- attempting to load a missing class;
-- loading the same class through two different `EdamClassLoader` instances;
+- handling missing classes through `ClassNotFoundException`;
+- loading the same class through different `EdamClassLoader` instances;
 - verifying that classes with the same name but different defining loaders are different JVM types;
-- verifying lazy loading of dependent classes.
-
-<br>
+- observing lazy loading of dependent classes;
+- loading an individual `.class` file through HTTP;
+- loading a class from a remote JAR archive.
 
 ### Remote Class Loading Tests
 
 Remote class loading tests use the `jwebserver` utility included in JDK 18 and later.
 
-The server must be started before running these tests:
+The test HTTP server must be started before running the remote integration tests.
 
-```powershell
-jwebserver -p 8000 -d C:\temp\classes
-```
-
-The directory must contain the compiled class files in their corresponding package structure, such as:
+Example directory structure:
 
 ```text
-C:\temp\classes\
-└── com\
-    └── example\
-        └── RemoteHello.class
+C:\temp\
+├── classes\
+│   └── com\
+│       └── example\
+│           └── RemoteHello.class
+└── jars\
+    └── remote-hello-test.jar
 ```
 
-The test retrieves `RemoteHello.class` through HTTP and verifies that it is loaded by `EdamClassLoader`.
+Start the server:
+
+```powershell
+jwebserver -p 8000 -d "C:\temp"
+```
+
+If `jwebserver` is not available in the system `PATH`, execute it from the `bin` directory of a compatible JDK installation.
+
+The server exposes the following resources:
+
+```text
+http://localhost:8000/classes/com/example/RemoteHello.class
+http://localhost:8000/jars/remote-hello-test.jar
+```
+
+The tests verify that `EdamClassLoader` retrieves and defines `com.example.RemoteHello` from both sources.
 
 These are integration tests and require the HTTP server to be running.
 
-<br>
+### Lazy Loading Behavioral Test
+
+A separate behavioral test demonstrates when the JVM requests dependent classes.
+
+The test loads `ReportGenerator`, creates an instance and invokes `generateReport()`, which depends on `ReportFormatter`.
+
+The exact moment when the JVM loads dependencies is implementation-dependent and should not be treated as a guaranteed execution order.
 
 ## Technology
 
 - Java 25
 - IntelliJ IDEA
 - Maven
-
-<br>
+- JUnit 5
+- Java HttpClient
 
 ## Development priorities
 
-1. Create a custom `ClassLoader`.
-2. Implement class lookup through `findClass()`.
-3. Support class bytecode retrieval from filesystem directories.
-4. Support class bytecode retrieval from JAR archives.
-5. Define classes using `defineClass()`.
-6. Preserve Java's parent-first delegation behavior.
-7. Add tests for loading classes from different sources.
-8. Add tests for parent delegation.
-9. Add tests for class identity across different class loaders.
-10. Add tests for lazy dependency loading.
-11. Keep bytecode retrieval extensible without unnecessary abstractions.
-12. Package the library as a reusable JAR.
-
-<br>
+1. Implement a custom `ClassLoader` using `findClass()`.
+2. Preserve Java's parent-first delegation behavior.
+3. Support multiple bytecode sources through `URI[]`.
+4. Load classes from filesystem directories and local JAR archives.
+5. Retrieve classes and JAR archives through HTTP/HTTPS.
+6. Separate bytecode retrieval from class definition.
+7. Define classes using `defineClass()`.
+8. Test local and remote class-loading behavior.
+9. Verify parent delegation, class identity and lazy dependency loading.
+10. Keep the library small and free from application-specific logic.
+11. Package the library as a reusable JAR.
