@@ -344,6 +344,31 @@ Useful scenarios include:
 
 <br>
 
+### Remote Class Loading Tests
+
+Remote class loading tests use the `jwebserver` utility included in JDK 18 and later.
+
+The server must be started before running these tests:
+
+```powershell
+jwebserver -p 8000 -d C:\temp\classes
+```
+
+The directory must contain the compiled class files in their corresponding package structure, such as:
+
+```text
+C:\temp\classes\
+└── com\
+    └── example\
+        └── RemoteHello.class
+```
+
+The test retrieves `RemoteHello.class` through HTTP and verifies that it is loaded by `EdamClassLoader`.
+
+These are integration tests and require the HTTP server to be running.
+
+<br>
+
 ## Technology
 
 - Java 25
