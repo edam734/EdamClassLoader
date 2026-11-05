@@ -1,20 +1,27 @@
 package com.edam.classloader;
 
+import com.edam.classloader.strategy.format.ClassFileStrategy;
+import com.edam.classloader.strategy.format.ClassLoadingStrategy;
+import com.edam.classloader.strategy.format.JarStrategy;
 import org.junit.jupiter.api.Test;
 
 import java.net.URI;
 import java.nio.file.Path;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 public class EdamClassLoaderTest {
 
+    private final List<ClassLoadingStrategy> strategies = List.of(new ClassFileStrategy(),
+            new JarStrategy());
+
     @Test
     void shouldLoadClassFromDirectory() throws ClassNotFoundException {
-        URI[] roots = {Path.of("C:/temp/classes").toUri()};
+        URI[] roots = {URI.create("file:///C:/temp/classes/")};
 
         EdamClassLoader edamClassLoader = new EdamClassLoader(roots,
-                ClassLoader.getSystemClassLoader());
+                ClassLoader.getSystemClassLoader(), strategies);
 
         Class<?> loadedClass = edamClassLoader.loadClass("com.example.Hello");
 
@@ -27,7 +34,7 @@ public class EdamClassLoaderTest {
         URI[] roots = {Path.of("test-examples", "edam-classloader-example.jar").toUri()};
 
         EdamClassLoader edamClassLoader = new EdamClassLoader(roots,
-                ClassLoader.getSystemClassLoader());
+                ClassLoader.getSystemClassLoader(), strategies);
 
         Class<?> loadedClass = edamClassLoader.loadClass("com.example.ReportGenerator");
 
@@ -41,11 +48,11 @@ public class EdamClassLoaderTest {
 
     @Test
     void shouldLoadClassesFromMultipleRoots() throws Exception {
-        URI[] roots = {Path.of("C:/temp/classes").toUri(), Path.of("test-examples",
-                "edam-classloader-example.jar").toUri(), Path.of("C:/dir").toUri()};
+        URI[] roots = {URI.create("file:///C:/temp/classes/"), Path.of("test-examples",
+                "edam-classloader-example.jar").toUri(), URI.create("file:///C:/dir/")};
 
         EdamClassLoader edamClassLoader = new EdamClassLoader(roots,
-                ClassLoader.getSystemClassLoader());
+                ClassLoader.getSystemClassLoader(), strategies);
 
         // First root: directory
         Class<?> helloClass = edamClassLoader.loadClass("com.example.Hello");
@@ -70,11 +77,11 @@ public class EdamClassLoaderTest {
 
     @Test
     void shouldLoadClassFromParentClassLoader() throws Exception {
-        URI[] roots = {Path.of("test-examples").toUri()};
+        URI[] roots = {URI.create("file:///C:/temp/classes/")};
 
         ClassLoader parent = ClassLoader.getSystemClassLoader();
 
-        EdamClassLoader edamClassLoader = new EdamClassLoader(roots, parent);
+        EdamClassLoader edamClassLoader = new EdamClassLoader(roots, parent, strategies);
 
         Class<?> loadedClass = edamClassLoader.loadClass("com.example.ParentGreeting");
 
@@ -83,11 +90,12 @@ public class EdamClassLoaderTest {
 
     @Test
     void shouldThrowClassNotFoundExceptionWhenClassDoesNotExist() {
-        URI[] roots = {Path.of("C:/temp/classes").toUri(), Path.of("test-examples/jars",
-                "edam-classloader-example.jar").toUri(), Path.of("C:/dir").toUri()};
+        URI[] roots = {URI.create("file:///C:/temp/classes/"), URI.create(
+                "file:///C:/temp/jars/edam-classloader-example.jar"), URI.create(
+                "file:///C:/dir/")};
 
         EdamClassLoader edamClassLoader = new EdamClassLoader(roots,
-                ClassLoader.getSystemClassLoader());
+                ClassLoader.getSystemClassLoader(), strategies);
 
         assertThrows(ClassNotFoundException.class,
                 () -> edamClassLoader.loadClass("com.example.NonExistent"));
@@ -95,11 +103,11 @@ public class EdamClassLoaderTest {
 
     @Test
     void shouldLoadClassFromFirstMatchingRoot() throws Exception {
-        URI[] roots = {Path.of("C:/temp/classes").toUri(), Path.of("test-examples",
-                "edam-classloader-example.jar").toUri()};
+        URI[] roots = {URI.create("file:///C:/temp/classes/"), URI.create(
+                "file:///C:/temp/jars/edam-classloader-example.jar")};
 
         EdamClassLoader edamClassLoader = new EdamClassLoader(roots,
-                ClassLoader.getSystemClassLoader());
+                ClassLoader.getSystemClassLoader(), strategies);
 
         Class<?> loadedClass = edamClassLoader.loadClass("com.example.Hello");
 
@@ -111,12 +119,14 @@ public class EdamClassLoaderTest {
     }
 
     @Test
-    void URI() throws Exception {
-        URI[] roots = {Path.of("C:/temp/classes").toUri()};
+    void shouldLoadDistinctClassesWithDifferentClassLoaders() throws Exception {
+        URI[] roots = {URI.create("file:///C:/temp/classes/")};
 
-        EdamClassLoader loaderA = new EdamClassLoader(roots, ClassLoader.getSystemClassLoader());
+        EdamClassLoader loaderA = new EdamClassLoader(roots, ClassLoader.getSystemClassLoader(),
+                strategies);
 
-        EdamClassLoader loaderB = new EdamClassLoader(roots, ClassLoader.getSystemClassLoader());
+        EdamClassLoader loaderB = new EdamClassLoader(roots, ClassLoader.getSystemClassLoader(),
+                strategies);
 
         Class<?> clazzA = loaderA.loadClass("com.example.Hello");
         Class<?> clazzB = loaderB.loadClass("com.example.Hello");
@@ -129,10 +139,10 @@ public class EdamClassLoaderTest {
 
     @Test
     void shouldLoadClassFromRemoteServer() throws Exception {
-        URI[] roots = new URI[]{URI.create("http://localhost:8000/classes")};
+        URI[] roots = {URI.create("http://localhost:8000/classes/")};
 
         EdamClassLoader edamClassLoader = new EdamClassLoader(roots,
-                ClassLoader.getSystemClassLoader());
+                ClassLoader.getSystemClassLoader(), strategies);
 
         Class<?> loadedClass = edamClassLoader.loadClass("com.example.RemoteHello");
 
@@ -145,13 +155,10 @@ public class EdamClassLoaderTest {
 
     @Test
     void shouldLoadClassFromRemoteJar() throws Exception {
-        URI[] roots = {
-                URI.create("http://localhost:8000/jars/remote-hello-test.jar")
-        };
+        URI[] roots = {URI.create("http://localhost:8000/jars/remote-hello-test.jar")};
 
-        EdamClassLoader edamClassLoader = new EdamClassLoader(
-                roots, ClassLoader.getSystemClassLoader()
-        );
+        EdamClassLoader edamClassLoader = new EdamClassLoader(roots,
+                ClassLoader.getSystemClassLoader(), strategies);
 
         Class<?> loadedClass = edamClassLoader.loadClass("com.example.RemoteHello");
 

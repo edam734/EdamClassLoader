@@ -1,9 +1,13 @@
 package com.edam.classloader.behavioral;
 
 import com.edam.classloader.EdamClassLoader;
+import com.edam.classloader.strategy.format.ClassFileStrategy;
+import com.edam.classloader.strategy.format.ClassLoadingStrategy;
+import com.edam.classloader.strategy.format.JarStrategy;
 
 import java.net.URI;
 import java.nio.file.Path;
+import java.util.List;
 
 public class LazyLoadingTest {
 
@@ -24,10 +28,11 @@ public class LazyLoadingTest {
      * are loaded is determined by the JVM and is not guaranteed.
      */
     static void main(String[] args) throws Exception {
+        List<ClassLoadingStrategy> strategies = List.of(new ClassFileStrategy(), new JarStrategy());
         URI[] roots = {Path.of("test-examples", "edam-classloader-example.jar").toUri()};
 
         EdamClassLoader edamClassLoader = new EdamClassLoader(roots,
-                ClassLoader.getSystemClassLoader());
+                ClassLoader.getSystemClassLoader(), strategies);
 
         String className = "com.example.ReportGenerator";
         System.out.println("Loading class: " + className);
