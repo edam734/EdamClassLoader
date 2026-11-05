@@ -11,6 +11,8 @@ import java.util.Objects;
  * resources using a collection of class-loading strategies.
  *
  * <p>Preserves Java's standard parent-first delegation mechanism.
+ *
+ * @author edam
  */
 public final class EdamClassLoader extends ClassLoader {
     private final URI[] roots;
